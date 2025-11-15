@@ -30,3 +30,9 @@ htmlcov/
 # 系统文件
 .DS_Store
 Thumbs.db
+
+# SSH密钥文件（不应该提交）
+q
+q.pub
+*.pub
+id_*

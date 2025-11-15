@@ -1,0 +1,19 @@
+# DSL Agent 项目依赖
+
+# LLM API客户端
+openai>=1.0.0
+# 备选：其他LLM API
+# anthropic>=0.3.0  # Claude API
+# qianfan>=0.1.0    # 百度文心一言
+
+# 测试框架
+pytest>=7.0.0
+pytest-cov>=4.0.0
+
+# 命令行工具
+click>=8.0.0
+
+# 其他工具
+python-dotenv>=1.0.0  # 环境变量管理
+requests>=2.31.0      # HTTP请求
+
