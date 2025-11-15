@@ -2,6 +2,7 @@
 
 | 提交哈希 | 作者 | 日期 | 提交信息 |
 |---------|------|------|----------|
+| 756eee4 | Boston-creat | 2025-11-15 | 修复解析器无法解析意图的严重bug |
 | 8a2c7be | Boston-creat | 2025-11-15 | 修复意图匹配问题：改进SimpleLLMClient匹配逻辑和中文关键词提取 |
 | c813eb7 | Boston-creat | 2025-11-15 | fix: 配置智谱AI API，改进中文意图匹配算法，添加更多订单查询模式 |
 | 775fde1 | Boston-creat | 2025-11-15 | Improve intent matching: enhance LLM fallback and simple matching algorithm |
