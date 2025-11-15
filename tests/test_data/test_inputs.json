@@ -1,0 +1,29 @@
+{
+  "test_cases": [
+    {
+      "id": "TC001",
+      "description": "订单查询意图识别",
+      "user_input": "查询订单",
+      "expected_intent": "订单查询"
+    },
+    {
+      "id": "TC002",
+      "description": "退款申请意图识别",
+      "user_input": "我要退款",
+      "expected_intent": "退款申请"
+    },
+    {
+      "id": "TC003",
+      "description": "技术支持意图识别",
+      "user_input": "遇到问题了",
+      "expected_intent": "技术支持"
+    },
+    {
+      "id": "TC004",
+      "description": "未匹配意图",
+      "user_input": "随便说点什么",
+      "expected_intent": null
+    }
+  ]
+}
+

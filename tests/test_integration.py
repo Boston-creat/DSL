@@ -26,14 +26,16 @@ def test_end_to_end_order_query():
     tokens = lexer.tokenize()
     assert len(tokens) > 0
     
-    # 语法分析
-    parser = Parser(lexer)
+    # 语法分析（需要重新创建lexer，因为tokenize已经消耗了）
+    lexer2 = Lexer(script)
+    parser = Parser(lexer2)
     program = parser.parse()
     assert len(program.intents) == 1
     
     # 解释执行
     llm_client = SimpleLLMClient()
     interpreter = Interpreter(llm_client)
+    interpreter.intents = program.intents  # 设置意图列表
     
     # 模拟用户输入
     user_inputs = {"order_number": "12345"}

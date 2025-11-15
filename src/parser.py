@@ -195,11 +195,17 @@ class Parser:
         self.skip_newlines()
         
         actions = []
+        # 解析when_clause内部的actions（直到when_clause的RBRACE）
         while self.current_token and self.current_token.type != TokenType.RBRACE:
             action = self.parse_action()
             actions.append(action)
             self.skip_newlines()
         
+        # 跳过when_clause的RBRACE
+        self.expect(TokenType.RBRACE)
+        self.skip_newlines()
+        
+        # 跳过intent的RBRACE
         self.expect(TokenType.RBRACE)
         return IntentDecl(name, when_clause, actions)
     
