@@ -58,6 +58,10 @@ class Interpreter:
         :param user_input: 用户输入
         :return: 匹配的意图，如果没有匹配则返回None
         """
+        # 检查intents是否已设置
+        if not hasattr(self, 'intents') or not self.intents:
+            return None
+        
         if not self.llm_client:
             # 如果没有LLM客户端，使用简单的关键词匹配
             return self._simple_match(user_input)
@@ -69,20 +73,49 @@ class Interpreter:
                 for intent in self.intents:
                     if intent.name == intent_name:
                         return intent
-        except Exception as e:
-            print(f"LLM意图识别失败，使用简单匹配: {e}")
+            # 如果LLM返回None或空字符串，fallback到简单匹配
             return self._simple_match(user_input)
-        
-        return None
+        except Exception as e:
+            # LLM失败时fallback到简单匹配
+            return self._simple_match(user_input)
     
     def _simple_match(self, user_input: str) -> Optional[IntentDecl]:
         """简单的关键词匹配（备用方案）"""
-        user_input_lower = user_input.lower()
+        if not hasattr(self, 'intents') or not self.intents:
+            return None
+        
+        user_input_lower = user_input.lower().strip()
+        
+        # 首先尝试完全匹配或包含匹配
         for intent in self.intents:
-            for pattern in intent.when_clause.patterns:
-                if pattern.lower() in user_input_lower:
-                    return intent
-        return None
+            if hasattr(intent, 'when_clause') and hasattr(intent.when_clause, 'patterns'):
+                for pattern in intent.when_clause.patterns:
+                    pattern_lower = pattern.lower().strip()
+                    # 完全匹配或包含匹配
+                    if pattern_lower == user_input_lower or pattern_lower in user_input_lower or user_input_lower in pattern_lower:
+                        return intent
+        
+        # 如果完全匹配失败，尝试关键词匹配（提取关键词）
+        user_keywords = set(user_input_lower.split())
+        if not user_keywords:
+            return None
+        
+        best_match = None
+        best_score = 0
+        
+        for intent in self.intents:
+            if hasattr(intent, 'when_clause') and hasattr(intent.when_clause, 'patterns'):
+                for pattern in intent.when_clause.patterns:
+                    pattern_lower = pattern.lower().strip()
+                    pattern_keywords = set(pattern_lower.split())
+                    # 计算共同关键词数量
+                    common_keywords = user_keywords & pattern_keywords
+                    score = len(common_keywords)
+                    if score > best_score:
+                        best_score = score
+                        best_match = intent
+        
+        return best_match if best_score > 0 else None
     
     def execute_intent(self, intent: IntentDecl) -> Dict[str, Any]:
         """
@@ -123,7 +156,7 @@ class Interpreter:
     
     def execute_ask(self, action: AskAction) -> Dict[str, Any]:
         """执行Ask动作"""
-        print(f"🤖 {action.message}")
+        print(f"[机器人] {action.message}")
         return {}
     
     def execute_wait_for(self, action: WaitForAction) -> Dict[str, Any]:
@@ -141,7 +174,7 @@ class Interpreter:
     def execute_response(self, action: ResponseAction) -> Dict[str, Any]:
         """执行Response动作"""
         response = self._format_template(action.template)
-        print(f"🤖 {response}")
+        print(f"[机器人] {response}")
         return {'response': response}
     
     def execute_set(self, action: SetAction) -> Dict[str, Any]:

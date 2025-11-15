@@ -7,6 +7,11 @@
 import sys
 import os
 from pathlib import Path
+
+# 添加项目根目录到路径
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
 from src.lexer import Lexer
 from src.parser import Parser
 from src.interpreter import Interpreter
@@ -43,81 +48,88 @@ def main():
         if idx + 1 < len(sys.argv):
             llm_client_type = sys.argv[idx + 1]
     
-    print(f"📄 加载脚本: {script_file}")
-    print(f"🤖 LLM客户端: {llm_client_type}")
+    # 设置输出编码（Windows兼容）
+    if sys.platform == 'win32':
+        import io
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    
+    print(f"[*] 加载脚本: {script_file}")
+    print(f"[*] LLM客户端: {llm_client_type}")
     print("-" * 50)
     
     # 加载脚本
     script_content = load_script(script_file)
     
     # 词法分析
-    print("🔍 词法分析中...")
+    print("[*] 词法分析中...")
     lexer = Lexer(script_content)
     try:
         tokens = lexer.tokenize()
-        print(f"✓ 词法分析完成，共 {len(tokens)} 个Token")
+        print(f"[OK] 词法分析完成，共 {len(tokens)} 个Token")
     except SyntaxError as e:
-        print(f"✗ 词法分析错误: {e}")
+        print(f"[ERROR] 词法分析错误: {e}")
         sys.exit(1)
     
     # 语法分析
-    print("🌳 语法分析中...")
+    print("[*] 语法分析中...")
     parser = Parser(lexer)
     try:
         program = parser.parse()
-        print(f"✓ 语法分析完成，共 {len(program.intents)} 个意图")
+        print(f"[OK] 语法分析完成，共 {len(program.intents)} 个意图")
     except SyntaxError as e:
-        print(f"✗ 语法分析错误: {e}")
+        print(f"[ERROR] 语法分析错误: {e}")
         sys.exit(1)
     
     # 创建LLM客户端
-    print("🤖 初始化LLM客户端...")
+    print("[*] 初始化LLM客户端...")
     llm_client = create_llm_client(llm_client_type)
-    print(f"✓ LLM客户端初始化完成")
+    print(f"[OK] LLM客户端初始化完成")
     
     # 创建解释器
     interpreter = Interpreter(llm_client)
+    # 通过interpret方法初始化，确保intents正确设置
+    interpreter.interpret(program)
     
     # 设置用户输入回调
     def get_user_input(prompt: str) -> str:
-        return input(f"👤 请输入 {prompt}: ")
+        return input(f"请输入 {prompt}: ")
     
     interpreter.set_user_input_callback(get_user_input)
     
     print("-" * 50)
-    print("🚀 系统就绪，请输入您的问题（输入 'quit' 退出）")
+    print("[*] 系统就绪，请输入您的问题（输入 'quit' 退出）")
     print("-" * 50)
     
     # 交互循环
     while True:
         try:
-            user_input = input("\n👤 您: ").strip()
+            user_input = input("\n您: ").strip()
             
             if user_input.lower() in ['quit', 'exit', '退出']:
-                print("👋 再见！")
+                print("[*] 再见！")
                 break
             
             if not user_input:
                 continue
             
             # 意图识别
-            print("🔍 识别意图中...")
+            print("[*] 识别意图中...")
             matched_intent = interpreter.match_intent(user_input)
             
             if not matched_intent:
-                print("🤖 抱歉，我没有理解您的意图。请尝试其他表达方式。")
+                print("[!] 抱歉，我没有理解您的意图。请尝试其他表达方式。")
                 continue
             
-            print(f"✓ 识别到意图: {matched_intent.name}")
+            print(f"[OK] 识别到意图: {matched_intent.name}")
             
             # 执行意图
             result = interpreter.execute_intent(matched_intent)
             
         except KeyboardInterrupt:
-            print("\n👋 再见！")
+            print("\n[*] 再见！")
             break
         except Exception as e:
-            print(f"✗ 发生错误: {e}")
+            print(f"[ERROR] 发生错误: {e}")
             import traceback
             traceback.print_exc()
 
