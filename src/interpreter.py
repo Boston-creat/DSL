@@ -220,10 +220,54 @@ class Interpreter:
         return func(*args)
     
     def _format_template(self, template: str) -> str:
-        """格式化模板字符串，替换变量"""
-        result = template
-        for var_name, var_value in self.variables.items():
-            result = result.replace(f"{{{var_name}}}", str(var_value))
+        """格式化模板字符串，替换变量和表达式"""
+        import re
+        
+        def replace_expr(match):
+            """替换匹配的表达式"""
+            expr_str = match.group(1)  # 获取 { } 中的内容
+            
+            # 首先尝试作为变量名
+            if expr_str in self.variables:
+                return str(self.variables[expr_str])
+            
+            # 如果不是变量，尝试解析为表达式（函数调用等）
+            try:
+                # 尝试解析为函数调用，例如 get_order_status(order_number)
+                # 简单的函数调用解析
+                if '(' in expr_str and ')' in expr_str:
+                    func_match = re.match(r'(\w+)\s*\((.*)\)', expr_str)
+                    if func_match:
+                        func_name = func_match.group(1)
+                        args_str = func_match.group(2).strip()
+                        
+                        # 解析参数
+                        args = []
+                        if args_str:
+                            # 简单的参数解析（支持变量名）
+                            for arg in args_str.split(','):
+                                arg = arg.strip()
+                                # 如果是变量，获取变量值
+                                if arg in self.variables:
+                                    args.append(self.variables[arg])
+                                else:
+                                    # 否则作为字符串字面量
+                                    args.append(arg)
+                        
+                        # 调用函数
+                        if func_name in self.functions:
+                            result = self.functions[func_name](*args)
+                            return str(result)
+                
+                # 如果无法解析，返回原始表达式
+                return match.group(0)
+            except Exception as e:
+                # 如果解析失败，返回原始表达式
+                return match.group(0)
+        
+        # 使用正则表达式找到所有 {expression} 并替换
+        pattern = r'\{([^}]+)\}'
+        result = re.sub(pattern, replace_expr, template)
         return result
     
     # 内置函数实现
