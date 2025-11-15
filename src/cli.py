@@ -36,17 +36,26 @@ def main():
     if len(sys.argv) < 2:
         print("用法: python src/cli.py <script_file> [--llm-client <type>]")
         print("示例: python src/cli.py scripts/order_query.dsl")
-        print("示例: python src/cli.py scripts/order_query.dsl --llm-client openai")
+        print("示例: python src/cli.py scripts/order_query.dsl --llm-client zhipuai")
+        print("支持的LLM类型: zhipuai(智谱AI), simple(简单匹配)")
         sys.exit(1)
     
     script_file = sys.argv[1]
     
     # 解析命令行参数
-    llm_client_type = "simple"  # 默认使用简单匹配
+    # 默认尝试使用智谱AI（中国可用），如果未配置则使用简单匹配
+    llm_client_type = "zhipuai"  # 默认使用智谱AI（中国可用）
     if "--llm-client" in sys.argv:
         idx = sys.argv.index("--llm-client")
         if idx + 1 < len(sys.argv):
             llm_client_type = sys.argv[idx + 1]
+    elif not os.getenv("ZHIPUAI_API_KEY"):
+        # 如果没有配置API密钥，提示使用简单匹配
+        print("[*] 提示: 未检测到智谱AI API密钥")
+        print("[*] 支持的类型: zhipuai(智谱AI), simple(简单匹配)")
+        print("[*] 将尝试使用智谱AI，如果失败将自动降级到简单匹配")
+        print("[*] 配置方法: 创建.env文件，添加 ZHIPUAI_API_KEY=your_key")
+        print("-" * 50)
     
     # 设置输出编码（Windows兼容）
     if sys.platform == 'win32':

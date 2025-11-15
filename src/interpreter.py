@@ -96,7 +96,10 @@ class Interpreter:
                         return intent
         
         # 如果完全匹配失败，尝试关键词匹配（提取关键词）
-        user_keywords = set(user_input_lower.split())
+        # 对于中文，按字符分割而不是按空格
+        import re
+        # 提取中文字符和英文单词
+        user_keywords = set(re.findall(r'[\u4e00-\u9fa5]+|[a-zA-Z]+', user_input_lower))
         if not user_keywords:
             return None
         
@@ -107,7 +110,7 @@ class Interpreter:
             if hasattr(intent, 'when_clause') and hasattr(intent.when_clause, 'patterns'):
                 for pattern in intent.when_clause.patterns:
                     pattern_lower = pattern.lower().strip()
-                    pattern_keywords = set(pattern_lower.split())
+                    pattern_keywords = set(re.findall(r'[\u4e00-\u9fa5]+|[a-zA-Z]+', pattern_lower))
                     # 计算共同关键词数量
                     common_keywords = user_keywords & pattern_keywords
                     score = len(common_keywords)

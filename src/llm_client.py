@@ -25,27 +25,40 @@ class LLMClient:
         raise NotImplementedError
 
 
-class OpenAIClient(LLMClient):
-    """OpenAI API客户端"""
+class ZhipuAIClient(LLMClient):
+    """智谱AI (GLM) API客户端 - 中国可用"""
     
-    def __init__(self, api_key: Optional[str] = None, model: str = "gpt-3.5-turbo"):
+    def __init__(self, api_key: Optional[str] = None, model: str = "glm-4"):
         """
-        初始化OpenAI客户端
-        :param api_key: OpenAI API密钥，如果不提供则从环境变量读取
-        :param model: 使用的模型名称
+        初始化智谱AI客户端
+        :param api_key: 智谱AI API密钥，如果不提供则从环境变量读取
+        :param model: 使用的模型名称 (glm-4, glm-3-turbo等)
         """
+        api_key = api_key or os.getenv("ZHIPUAI_API_KEY")
+        
+        if not api_key:
+            raise ValueError(
+                "缺少ZHIPUAI_API_KEY。\n"
+                "获取方法：\n"
+                "1. 访问 https://open.bigmodel.cn/\n"
+                "2. 注册/登录账号\n"
+                "3. 进入'控制台' -> 'API Keys'\n"
+                "4. 创建新的API Key并复制\n"
+                "5. 在.env文件中配置: ZHIPUAI_API_KEY=your_key"
+            )
+        
         try:
-            import openai
-            self.client = openai.OpenAI(api_key=api_key or os.getenv("OPENAI_API_KEY"))
+            import zhipuai
+            self.client = zhipuai.ZhipuAI(api_key=api_key)
             self.model = model
         except ImportError:
-            raise ImportError("请安装openai库: pip install openai")
+            raise ImportError("请安装zhipuai库: pip install zhipuai")
         except Exception as e:
-            print(f"警告: OpenAI客户端初始化失败: {e}")
+            print(f"警告: 智谱AI客户端初始化失败: {e}")
             self.client = None
     
     def identify_intent(self, user_input: str, intents: List) -> Optional[str]:
-        """使用OpenAI API识别意图"""
+        """使用智谱AI API识别意图"""
         if not self.client:
             return None
         
@@ -65,8 +78,7 @@ class OpenAIClient(LLMClient):
 
 用户输入：{user_input}
 
-请只返回意图名称（不要包含引号或其他字符），如果没有匹配的意图，返回"None"。
-"""
+请只返回意图名称（不要包含引号或其他字符），如果没有匹配的意图，返回"None"。"""
         
         try:
             response = self.client.chat.completions.create(
@@ -92,7 +104,7 @@ class OpenAIClient(LLMClient):
             
             return None
         except Exception as e:
-            print(f"OpenAI API调用失败: {e}")
+            print(f"智谱AI API调用失败: {e}")
             return None
 
 
@@ -120,21 +132,21 @@ class SimpleLLMClient(LLMClient):
         return best_match.name if best_match and best_score > 0 else None
 
 
-def create_llm_client(client_type: str = "openai", **kwargs) -> LLMClient:
+def create_llm_client(client_type: str = "zhipuai", **kwargs) -> LLMClient:
     """
     创建LLM客户端
-    :param client_type: 客户端类型 ("openai", "simple")
+    :param client_type: 客户端类型 ("zhipuai", "simple")
     :param kwargs: 客户端初始化参数
     :return: LLM客户端实例
     """
-    if client_type == "openai":
+    if client_type == "zhipuai":
         try:
-            return OpenAIClient(**kwargs)
+            return ZhipuAIClient(**kwargs)
         except Exception as e:
-            print(f"无法创建OpenAI客户端，使用简单匹配: {e}")
+            print(f"无法创建智谱AI客户端，使用简单匹配: {e}")
             return SimpleLLMClient()
     elif client_type == "simple":
         return SimpleLLMClient()
     else:
-        raise ValueError(f"未知的客户端类型: {client_type}")
+        raise ValueError(f"未知的客户端类型: {client_type}，支持的类型: zhipuai, simple")
 

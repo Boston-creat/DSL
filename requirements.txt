@@ -1,10 +1,7 @@
 # DSL Agent 项目依赖
 
 # LLM API客户端
-openai>=1.0.0
-# 备选：其他LLM API
-# anthropic>=0.3.0  # Claude API
-# qianfan>=0.1.0    # 百度文心一言
+zhipuai>=2.0.0         # 智谱AI (GLM) - 中国可用，推荐
 
 # 测试框架
 pytest>=7.0.0
