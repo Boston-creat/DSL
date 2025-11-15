@@ -127,6 +127,12 @@ def main():
             
             if not matched_intent:
                 print("[!] 抱歉，我没有理解您的意图。请尝试其他表达方式。")
+                print(f"[DEBUG] 用户输入: '{user_input}'")
+                if hasattr(interpreter, 'intents') and interpreter.intents:
+                    print(f"[DEBUG] 可用意图数量: {len(interpreter.intents)}")
+                    for intent in interpreter.intents:
+                        if hasattr(intent, 'when_clause') and hasattr(intent.when_clause, 'patterns'):
+                            print(f"[DEBUG] 意图 '{intent.name}' 的模式: {intent.when_clause.patterns}")
                 continue
             
             print(f"[OK] 识别到意图: {matched_intent.name}")

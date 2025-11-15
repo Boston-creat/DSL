@@ -74,10 +74,13 @@ class Interpreter:
                     if intent.name == intent_name:
                         return intent
             # 如果LLM返回None或空字符串，fallback到简单匹配
-            return self._simple_match(user_input)
+            # 注意：即使LLM返回None，也要fallback到简单匹配
+            fallback_result = self._simple_match(user_input)
+            return fallback_result
         except Exception as e:
             # LLM失败时fallback到简单匹配
-            return self._simple_match(user_input)
+            fallback_result = self._simple_match(user_input)
+            return fallback_result
     
     def _simple_match(self, user_input: str) -> Optional[IntentDecl]:
         """简单的关键词匹配（备用方案）"""
@@ -99,7 +102,8 @@ class Interpreter:
         # 对于中文，按字符分割而不是按空格
         import re
         # 提取中文字符和英文单词
-        user_keywords = set(re.findall(r'[\u4e00-\u9fa5]+|[a-zA-Z]+', user_input_lower))
+        # 对于单个中文字符，也要提取
+        user_keywords = set(re.findall(r'[\u4e00-\u9fa5]|[a-zA-Z]+', user_input_lower))
         if not user_keywords:
             return None
         
@@ -110,7 +114,8 @@ class Interpreter:
             if hasattr(intent, 'when_clause') and hasattr(intent.when_clause, 'patterns'):
                 for pattern in intent.when_clause.patterns:
                     pattern_lower = pattern.lower().strip()
-                    pattern_keywords = set(re.findall(r'[\u4e00-\u9fa5]+|[a-zA-Z]+', pattern_lower))
+                    # 同样提取单个中文字符
+                    pattern_keywords = set(re.findall(r'[\u4e00-\u9fa5]|[a-zA-Z]+', pattern_lower))
                     # 计算共同关键词数量
                     common_keywords = user_keywords & pattern_keywords
                     score = len(common_keywords)
