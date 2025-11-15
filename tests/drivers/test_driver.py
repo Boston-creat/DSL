@@ -43,8 +43,11 @@ class TestDriver:  # pytest: disable=no-member
         
         # 使用pytest运行测试
         try:
+            # 在Windows上使用 python -m pytest，确保能找到pytest
+            import sys
+            pytest_cmd = [sys.executable, '-m', 'pytest', self.test_dir, '-v', '--tb=short']
             result = subprocess.run(
-                ['pytest', self.test_dir, '-v', '--tb=short'],
+                pytest_cmd,
                 capture_output=True,
                 text=True,
                 cwd=Path(__file__).parent.parent.parent

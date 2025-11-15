@@ -179,6 +179,13 @@ class Parser:
                 intent = self.parse_intent()
                 intents.append(intent)
             else:
+                # 跳过注释行（以#开头的行）
+                if self.current_token.value and self.current_token.value.strip().startswith('#'):
+                    # 跳过到下一行
+                    while self.current_token and self.current_token.type != TokenType.NEWLINE and self.current_token.type != TokenType.EOF:
+                        self.advance()
+                    self.skip_newlines()
+                    continue
                 self.error(f"Unexpected token: {self.current_token.type}")
             self.skip_newlines()
         

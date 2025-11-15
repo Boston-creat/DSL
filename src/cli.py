@@ -81,6 +81,8 @@ def main():
     
     # 语法分析
     print("[*] 语法分析中...")
+    # 重新创建lexer，因为之前的lexer已经被消耗了
+    lexer = Lexer(script_content)
     parser = Parser(lexer)
     try:
         program = parser.parse()
