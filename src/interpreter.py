@@ -48,6 +48,7 @@ class Interpreter:
         }
         self.current_intent: Optional[IntentDecl] = None
         self.user_input_callback: Optional[Callable[[str], str]] = None
+        self.output_callback: Optional[Callable[[str], None]] = None  # 输出回调（用于GUI）
         # 对话历史记录
         self.conversation_history: List[Dict[str, str]] = []  # [{"role": "user"/"bot", "content": "..."}]
         self.last_intent: Optional[str] = None  # 上一次的意图
@@ -56,6 +57,17 @@ class Interpreter:
     def set_user_input_callback(self, callback: Callable[[str], str]):
         """设置用户输入回调函数"""
         self.user_input_callback = callback
+    
+    def set_output_callback(self, callback: Callable[[str], None]):
+        """设置输出回调函数（用于GUI等非CLI界面）"""
+        self.output_callback = callback
+    
+    def _output(self, message: str):
+        """输出消息（优先使用回调，否则使用print）"""
+        if self.output_callback:
+            self.output_callback(message)
+        else:
+            print(message)
     
     def interpret(self, program: Program) -> Dict[str, Any]:
         """
@@ -167,7 +179,7 @@ class Interpreter:
     
     def execute_ask(self, action: AskAction) -> Dict[str, Any]:
         """执行Ask动作"""
-        print(f"[机器人] {action.message}")
+        self._output(f"[机器人] {action.message}")
         return {}
     
     def execute_wait_for(self, action: WaitForAction) -> Dict[str, Any]:
@@ -185,7 +197,7 @@ class Interpreter:
     def execute_response(self, action: ResponseAction) -> Dict[str, Any]:
         """执行Response动作"""
         response = self._format_template(action.template)
-        print(f"[机器人] {response}")
+        self._output(f"[机器人] {response}")
         return {'response': response}
     
     def execute_set(self, action: SetAction) -> Dict[str, Any]:
@@ -196,9 +208,10 @@ class Interpreter:
     
     def execute_options(self, action: OptionsAction) -> Dict[str, Any]:
         """执行Options动作"""
-        print("请选择：")
+        options_text = "请选择：\n"
         for i, option in enumerate(action.options, 1):
-            print(f"  {i}. {option}")
+            options_text += f"  {i}. {option}\n"
+        self._output(options_text)
         return {}
     
     def evaluate_expression(self, expr: Expression) -> Any:
