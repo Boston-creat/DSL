@@ -5,7 +5,7 @@ LLM客户端（LLM Client）
 """
 
 import os
-from typing import List, Optional
+from typing import List, Optional, Dict
 from dotenv import load_dotenv
 
 # 加载环境变量
@@ -15,11 +15,14 @@ load_dotenv()
 class LLMClient:
     """LLM客户端基类"""
     
-    def identify_intent(self, user_input: str, intents: List) -> Optional[str]:
+    def identify_intent(self, user_input: str, intents: List, conversation_history: List = None, last_intent: str = None, last_context: Dict = None) -> Optional[str]:
         """
         识别用户输入的意图
         :param user_input: 用户输入的自然语言
         :param intents: 可用的意图列表
+        :param conversation_history: 对话历史记录
+        :param last_intent: 上一次的意图
+        :param last_context: 上一次的上下文
         :return: 匹配的意图名称，如果没有匹配则返回None
         """
         raise NotImplementedError
@@ -58,8 +61,8 @@ class ZhipuAIClient(LLMClient):
         except Exception as e:
             raise RuntimeError(f"智谱AI客户端初始化失败: {e}")
     
-    def identify_intent(self, user_input: str, intents: List) -> Optional[str]:
-        """使用智谱AI API识别意图"""
+    def identify_intent(self, user_input: str, intents: List, conversation_history: List = None, last_intent: str = None, last_context: Dict = None) -> Optional[str]:
+        """使用智谱AI API识别意图（支持对话历史和上下文）"""
         # 确保客户端已初始化
         if not self.client:
             raise RuntimeError("智谱AI客户端未正确初始化")
@@ -72,23 +75,39 @@ class ZhipuAIClient(LLMClient):
         
         intent_list = "\n".join(intent_descriptions)
         
+        # 构建上下文信息
+        context_info = ""
+        if last_intent:
+            context_info += f"\n上一次对话的意图：{last_intent}"
+        if last_context:
+            context_info += f"\n上一次对话的上下文：{last_context}"
+        if conversation_history and len(conversation_history) > 0:
+            context_info += "\n\n最近对话历史："
+            for msg in conversation_history[-4:]:  # 只显示最近4条
+                role = "用户" if msg.get("role") == "user" else "机器人"
+                context_info += f"\n{role}: {msg.get('content', '')}"
+        
         # 构建提示词
-        prompt = f"""你是一个智能客服系统的意图识别模块。请根据用户输入，从以下意图列表中选择最匹配的意图。
+        prompt = f"""你是一个智能客服系统的意图识别模块。请根据用户输入和对话历史，从以下意图列表中选择最匹配的意图。
 
 可用意图列表：
 {intent_list}
+{context_info}
 
 用户输入：{user_input}
 
-请只返回意图名称（不要包含引号或其他字符），如果没有匹配的意图，返回"None"。"""
+请只返回意图名称（不要包含引号或其他字符），如果没有匹配的意图，返回"None"。
+注意：如果用户的问题是对上一个话题的追问或继续，应该识别为相关的意图。"""
         
         try:
+            messages = [
+                {"role": "system", "content": "你是一个专业的意图识别助手，能够理解对话上下文，只返回意图名称。"},
+                {"role": "user", "content": prompt}
+            ]
+            
             response = self.client.chat.completions.create(
                 model=self.model,
-                messages=[
-                    {"role": "system", "content": "你是一个专业的意图识别助手，只返回意图名称。"},
-                    {"role": "user", "content": prompt}
-                ],
+                messages=messages,
                 temperature=0.3,
                 max_tokens=50
             )
