@@ -1,5 +1,0 @@
-# Git提交历史（简洁格式）
-
-3018176 - Boston-creat, 11 minutes ago : test: 补充测试桩、测试驱动和自动测试脚本，修复解析器bug，所有测试通过
-b3d6b04 - Boston-creat, 6 minutes ago : feat: 实现DSL解释器核心功能 - 添加词法分析器、语法分析器、解释器、LLM客户端和CLI界面，包含多个业务场景脚本范例和测试用例
-85fa17e - Boston-creat, 4 hours ago : Initial commit: 项目初始化

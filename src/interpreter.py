@@ -57,14 +57,18 @@ class Interpreter:
         匹配用户输入的意图
         :param user_input: 用户输入
         :return: 匹配的意图，如果没有匹配则返回None
+        :raises RuntimeError: 如果LLM客户端未配置
         """
         # 检查intents是否已设置
         if not hasattr(self, 'intents') or not self.intents:
             return None
         
+        # 必须使用LLM客户端进行意图识别
         if not self.llm_client:
-            # 如果没有LLM客户端，使用简单的关键词匹配
-            return self._simple_match(user_input)
+            raise RuntimeError(
+                "LLM客户端未配置。本项目要求使用API进行意图识别。\n"
+                "请配置 ZHIPUAI_API_KEY 环境变量。"
+            )
         
         # 使用LLM进行意图识别
         try:
@@ -73,57 +77,10 @@ class Interpreter:
                 for intent in self.intents:
                     if intent.name == intent_name:
                         return intent
-            # 如果LLM返回None或空字符串，fallback到简单匹配
-            # 注意：即使LLM返回None，也要fallback到简单匹配
-            fallback_result = self._simple_match(user_input)
-            return fallback_result
+            return None
         except Exception as e:
-            # LLM失败时fallback到简单匹配
-            fallback_result = self._simple_match(user_input)
-            return fallback_result
-    
-    def _simple_match(self, user_input: str) -> Optional[IntentDecl]:
-        """简单的关键词匹配（备用方案）"""
-        if not hasattr(self, 'intents') or not self.intents:
-            return None
-        
-        user_input_lower = user_input.lower().strip()
-        
-        # 首先尝试完全匹配或包含匹配
-        for intent in self.intents:
-            if hasattr(intent, 'when_clause') and hasattr(intent.when_clause, 'patterns'):
-                for pattern in intent.when_clause.patterns:
-                    pattern_lower = pattern.lower().strip()
-                    # 完全匹配或包含匹配
-                    if pattern_lower == user_input_lower or pattern_lower in user_input_lower or user_input_lower in pattern_lower:
-                        return intent
-        
-        # 如果完全匹配失败，尝试关键词匹配（提取关键词）
-        # 对于中文，按字符分割而不是按空格
-        import re
-        # 提取中文字符和英文单词
-        # 对于单个中文字符，也要提取
-        user_keywords = set(re.findall(r'[\u4e00-\u9fa5]|[a-zA-Z]+', user_input_lower))
-        if not user_keywords:
-            return None
-        
-        best_match = None
-        best_score = 0
-        
-        for intent in self.intents:
-            if hasattr(intent, 'when_clause') and hasattr(intent.when_clause, 'patterns'):
-                for pattern in intent.when_clause.patterns:
-                    pattern_lower = pattern.lower().strip()
-                    # 同样提取单个中文字符
-                    pattern_keywords = set(re.findall(r'[\u4e00-\u9fa5]|[a-zA-Z]+', pattern_lower))
-                    # 计算共同关键词数量
-                    common_keywords = user_keywords & pattern_keywords
-                    score = len(common_keywords)
-                    if score > best_score:
-                        best_score = score
-                        best_match = intent
-        
-        return best_match if best_score > 0 else None
+            # LLM失败时抛出异常，不再fallback
+            raise RuntimeError(f"意图识别失败: {e}")
     
     def execute_intent(self, intent: IntentDecl) -> Dict[str, Any]:
         """
@@ -274,7 +231,29 @@ class Interpreter:
     def _get_order_status(self, order_number: str) -> str:
         """获取订单状态（模拟）"""
         # 实际应用中，这里应该调用真实的API或数据库
-        return f"已发货"
+        # 根据订单号模拟不同的订单状态
+        if not order_number:
+            return "订单号无效"
+        
+        # 根据订单号的最后一位数字模拟不同状态
+        try:
+            last_digit = int(order_number[-1]) if order_number[-1].isdigit() else 0
+            statuses = [
+                "待付款",
+                "已付款",
+                "已发货",
+                "运输中",
+                "已送达",
+                "已完成",
+                "已取消",
+                "退款中",
+                "已退款",
+                "待评价"
+            ]
+            return statuses[last_digit % len(statuses)]
+        except:
+            # 如果无法解析，默认返回已发货
+            return "已发货"
     
     def _create_refund(self, order_number: str, reason: str) -> str:
         """创建退款申请（模拟）"""

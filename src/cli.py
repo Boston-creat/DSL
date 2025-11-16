@@ -37,25 +37,34 @@ def main():
         print("用法: python src/cli.py <script_file> [--llm-client <type>]")
         print("示例: python src/cli.py scripts/order_query.dsl")
         print("示例: python src/cli.py scripts/order_query.dsl --llm-client zhipuai")
-        print("支持的LLM类型: zhipuai(智谱AI), simple(简单匹配)")
+        print("支持的LLM类型: zhipuai(智谱AI)")
+        print("\n注意: 本项目要求使用API进行意图识别，必须配置 ZHIPUAI_API_KEY")
+        print("配置方法: 创建 .env 文件，添加 ZHIPUAI_API_KEY=your_key")
         sys.exit(1)
     
     script_file = sys.argv[1]
     
     # 解析命令行参数
-    # 默认尝试使用智谱AI（中国可用），如果未配置则使用简单匹配
+    # 默认使用智谱AI（中国可用）
     llm_client_type = "zhipuai"  # 默认使用智谱AI（中国可用）
     if "--llm-client" in sys.argv:
         idx = sys.argv.index("--llm-client")
         if idx + 1 < len(sys.argv):
             llm_client_type = sys.argv[idx + 1]
-    elif not os.getenv("ZHIPUAI_API_KEY"):
-        # 如果没有配置API密钥，提示使用简单匹配
-        print("[*] 提示: 未检测到智谱AI API密钥")
-        print("[*] 支持的类型: zhipuai(智谱AI), simple(简单匹配)")
-        print("[*] 将尝试使用智谱AI，如果失败将自动降级到简单匹配")
-        print("[*] 配置方法: 创建.env文件，添加 ZHIPUAI_API_KEY=your_key")
-        print("-" * 50)
+            if llm_client_type == "simple":
+                print("[ERROR] 本项目要求使用API进行意图识别，不支持 simple 模式")
+                print("请配置 ZHIPUAI_API_KEY 环境变量")
+                sys.exit(1)
+    
+    # 检查API密钥配置
+    if not os.getenv("ZHIPUAI_API_KEY"):
+        print("[ERROR] 未检测到智谱AI API密钥")
+        print("[*] 本项目要求使用API进行意图识别，必须配置 ZHIPUAI_API_KEY")
+        print("[*] 配置方法:")
+        print("    1. 创建 .env 文件（在项目根目录）")
+        print("    2. 添加: ZHIPUAI_API_KEY=your_key")
+        print("    3. 获取API密钥: 访问 https://open.bigmodel.cn/")
+        sys.exit(1)
     
     # 设置输出编码（Windows兼容）
     if sys.platform == 'win32':
@@ -93,8 +102,12 @@ def main():
     
     # 创建LLM客户端
     print("[*] 初始化LLM客户端...")
-    llm_client = create_llm_client(llm_client_type)
-    print(f"[OK] LLM客户端初始化完成")
+    try:
+        llm_client = create_llm_client(llm_client_type)
+        print(f"[OK] LLM客户端初始化完成")
+    except (ValueError, ImportError, RuntimeError) as e:
+        print(f"[ERROR] LLM客户端初始化失败: {e}")
+        sys.exit(1)
     
     # 创建解释器
     interpreter = Interpreter(llm_client)

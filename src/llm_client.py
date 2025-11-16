@@ -33,34 +33,36 @@ class ZhipuAIClient(LLMClient):
         初始化智谱AI客户端
         :param api_key: 智谱AI API密钥，如果不提供则从环境变量读取
         :param model: 使用的模型名称 (glm-4, glm-3-turbo等)
+        :raises ValueError: 如果未配置API Key或初始化失败
         """
         api_key = api_key or os.getenv("ZHIPUAI_API_KEY")
         
-        # 如果没有API Key，不抛出异常，而是设置client为None，让identify_intent返回None，fallback到简单匹配
+        # 如果没有API Key，抛出异常
         if not api_key:
-            print("提示: 未配置ZHIPUAI_API_KEY，将使用简单匹配模式")
-            self.client = None
-            self.model = model
-            return
+            raise ValueError(
+                "未配置ZHIPUAI_API_KEY。请配置API密钥：\n"
+                "1. 创建 .env 文件\n"
+                "2. 添加 ZHIPUAI_API_KEY=your_key\n"
+                "3. 获取API密钥：访问 https://open.bigmodel.cn/"
+            )
         
         try:
             import zhipuai
             self.client = zhipuai.ZhipuAI(api_key=api_key)
             self.model = model
         except ImportError:
-            print("警告: 未安装zhipuai库，将使用简单匹配模式。安装方法: pip install zhipuai")
-            self.client = None
-            self.model = model
+            raise ImportError(
+                "未安装zhipuai库。请安装：pip install zhipuai\n"
+                "本项目要求使用API进行意图识别，不支持简单匹配模式。"
+            )
         except Exception as e:
-            print(f"警告: 智谱AI客户端初始化失败: {e}，将使用简单匹配模式")
-            self.client = None
-            self.model = model
+            raise RuntimeError(f"智谱AI客户端初始化失败: {e}")
     
     def identify_intent(self, user_input: str, intents: List) -> Optional[str]:
         """使用智谱AI API识别意图"""
-        # 如果客户端未初始化（没有API Key或初始化失败），返回None让解释器fallback到简单匹配
+        # 确保客户端已初始化
         if not self.client:
-            return None
+            raise RuntimeError("智谱AI客户端未正确初始化")
         
         # 构建意图列表描述
         intent_descriptions = []
@@ -108,58 +110,20 @@ class ZhipuAIClient(LLMClient):
             return None
 
 
-class SimpleLLMClient(LLMClient):
-    """简单的关键词匹配客户端（用于测试或备用）"""
-    
-    def identify_intent(self, user_input: str, intents: List) -> Optional[str]:
-        """使用简单的关键词匹配识别意图"""
-        user_input_lower = user_input.lower().strip()
-        
-        # 首先尝试完全匹配或包含匹配
-        for intent in intents:
-            for pattern in intent.when_clause.patterns:
-                pattern_lower = pattern.lower().strip()
-                # 完全匹配或包含匹配（双向）
-                if pattern_lower == user_input_lower or pattern_lower in user_input_lower or user_input_lower in pattern_lower:
-                    return intent.name
-        
-        # 如果完全匹配失败，尝试关键词匹配
-        import re
-        user_keywords = set(re.findall(r'[\u4e00-\u9fa5]|[a-zA-Z]+', user_input_lower))
-        if not user_keywords:
-            return None
-        
-        best_match = None
-        best_score = 0
-        
-        for intent in intents:
-            for pattern in intent.when_clause.patterns:
-                pattern_lower = pattern.lower().strip()
-                pattern_keywords = set(re.findall(r'[\u4e00-\u9fa5]|[a-zA-Z]+', pattern_lower))
-                common_keywords = user_keywords & pattern_keywords
-                score = len(common_keywords)
-                if score > best_score:
-                    best_score = score
-                    best_match = intent
-        
-        return best_match.name if best_match and best_score > 0 else None
-
-
 def create_llm_client(client_type: str = "zhipuai", **kwargs) -> LLMClient:
     """
     创建LLM客户端
-    :param client_type: 客户端类型 ("zhipuai", "simple")
+    :param client_type: 客户端类型（目前仅支持 "zhipuai"）
     :param kwargs: 客户端初始化参数
     :return: LLM客户端实例
+    :raises ValueError: 如果客户端类型不支持
     """
     if client_type == "zhipuai":
-        try:
-            return ZhipuAIClient(**kwargs)
-        except Exception as e:
-            print(f"无法创建智谱AI客户端，使用简单匹配: {e}")
-            return SimpleLLMClient()
-    elif client_type == "simple":
-        return SimpleLLMClient()
+        return ZhipuAIClient(**kwargs)
     else:
-        raise ValueError(f"未知的客户端类型: {client_type}，支持的类型: zhipuai, simple")
+        raise ValueError(
+            f"未知的客户端类型: {client_type}。\n"
+            f"本项目要求使用API进行意图识别，仅支持: zhipuai（智谱AI）\n"
+            f"请配置 ZHIPUAI_API_KEY 环境变量。"
+        )
 

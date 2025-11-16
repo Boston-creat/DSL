@@ -6,7 +6,7 @@ import pytest
 from src.lexer import Lexer
 from src.parser import Parser
 from src.interpreter import Interpreter
-from src.llm_client import SimpleLLMClient
+from tests.stubs.mock_llm_client import MockLLMClient
 
 
 def test_end_to_end_order_query():
@@ -33,7 +33,7 @@ def test_end_to_end_order_query():
     assert len(program.intents) == 1
     
     # 解释执行
-    llm_client = SimpleLLMClient()
+    llm_client = MockLLMClient()
     interpreter = Interpreter(llm_client)
     interpreter.intents = program.intents  # 设置意图列表
     
@@ -74,7 +74,7 @@ def test_multiple_intents():
     
     assert len(program.intents) == 2
     
-    llm_client = SimpleLLMClient()
+    llm_client = MockLLMClient()
     interpreter = Interpreter(llm_client)
     interpreter.intents = program.intents
     

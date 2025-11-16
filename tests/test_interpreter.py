@@ -6,7 +6,7 @@ import pytest
 from src.lexer import Lexer
 from src.parser import Parser
 from src.interpreter import Interpreter
-from src.llm_client import SimpleLLMClient
+from tests.stubs.mock_llm_client import MockLLMClient
 
 
 def test_interpreter_basic():
@@ -23,7 +23,7 @@ def test_interpreter_basic():
     parser = Parser(lexer)
     program = parser.parse()
     
-    llm_client = SimpleLLMClient()
+    llm_client = MockLLMClient()
     interpreter = Interpreter(llm_client)
     interpreter.intents = program.intents
     
@@ -53,7 +53,7 @@ def test_interpreter_variables():
     parser = Parser(lexer)
     program = parser.parse()
     
-    llm_client = SimpleLLMClient()
+    llm_client = MockLLMClient()
     interpreter = Interpreter(llm_client)
     
     intent = program.intents[0]
@@ -78,7 +78,7 @@ def test_interpreter_template_formatting():
     parser = Parser(lexer)
     program = parser.parse()
     
-    llm_client = SimpleLLMClient()
+    llm_client = MockLLMClient()
     interpreter = Interpreter(llm_client)
     
     intent = program.intents[0]
