@@ -10,6 +10,10 @@ from src.parser import (
     ResponseAction, SetAction, OptionsAction, Expression, StringLiteral,
     Variable, FunctionCall
 )
+from src.logger import setup_logger
+
+# 初始化日志记录器
+logger = setup_logger("DSL_Agent_Interpreter")
 
 
 class Interpreter:
@@ -94,12 +98,16 @@ class Interpreter:
         :return: 匹配的意图，如果没有匹配则返回None
         :raises RuntimeError: 如果LLM客户端未配置
         """
+        logger.debug(f"开始匹配意图，用户输入: {user_input}")
+        
         # 检查intents是否已设置
         if not hasattr(self, 'intents') or not self.intents:
+            logger.warning("意图列表未设置")
             return None
         
         # 必须使用LLM客户端进行意图识别
         if not self.llm_client:
+            logger.error("LLM客户端未配置")
             raise RuntimeError(
                 "LLM客户端未配置。本项目要求使用API进行意图识别。\n"
                 "请配置 ZHIPUAI_API_KEY 环境变量。"
@@ -107,9 +115,11 @@ class Interpreter:
         
         # 记录用户输入到对话历史
         self.conversation_history.append({"role": "user", "content": user_input})
+        logger.debug(f"对话历史长度: {len(self.conversation_history)}")
         
         # 使用LLM进行意图识别（带对话历史）
         try:
+            logger.debug(f"调用LLM进行意图识别，可用意图数: {len(self.intents)}")
             intent_name = self.llm_client.identify_intent(
                 user_input, 
                 self.intents,
@@ -118,11 +128,15 @@ class Interpreter:
                 last_context=self.last_context
             )
             if intent_name:
+                logger.info(f"LLM识别到意图: {intent_name}")
                 for intent in self.intents:
                     if intent.name == intent_name:
                         return intent
+            else:
+                logger.warning("LLM未识别到任何意图")
             return None
         except Exception as e:
+            logger.error(f"意图识别失败: {e}", exc_info=True)
             # LLM失败时抛出异常，不再fallback
             raise RuntimeError(f"意图识别失败: {e}")
     
@@ -132,12 +146,15 @@ class Interpreter:
         :param intent: 意图声明
         :return: 执行结果
         """
+        logger.info(f"开始执行意图: {intent.name}，动作数量: {len(intent.actions)}")
         self.current_intent = intent
         # 保留上一次的变量（用于上下文）
         if not self.last_context:
             self.variables.clear()
+            logger.debug("清空变量，开始新的意图执行")
         else:
             # 保留关键变量
+            logger.debug(f"保留上下文变量: {list(self.last_context.keys())}")
             for key in ['order_number', 'reason', 'problem_description', 'account', 'product_keyword']:
                 if key in self.last_context:
                     self.variables[key] = self.last_context[key]
@@ -148,7 +165,8 @@ class Interpreter:
         }
         
         # 执行所有动作
-        for action in intent.actions:
+        for i, action in enumerate(intent.actions):
+            logger.debug(f"执行动作 {i+1}/{len(intent.actions)}: {type(action).__name__}")
             action_result = self.execute_action(action)
             if action_result and 'response' in action_result:
                 result['response'] = action_result['response']
@@ -158,8 +176,10 @@ class Interpreter:
         # 记录对话历史和上下文
         if result.get('response'):
             self.conversation_history.append({"role": "bot", "content": result['response']})
+            logger.debug(f"记录机器人回复到对话历史，长度: {len(self.conversation_history)}")
         self.last_intent = intent.name
         self.last_context = self.variables.copy()
+        logger.info(f"意图执行完成: {intent.name}")
         
         return result
     

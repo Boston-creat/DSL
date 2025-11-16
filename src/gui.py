@@ -21,6 +21,10 @@ from src.lexer import Lexer
 from src.parser import Parser
 from src.interpreter import Interpreter
 from src.llm_client import create_llm_client
+from src.logger import setup_logger
+
+# 初始化日志记录器
+logger = setup_logger("DSL_Agent_GUI")
 
 
 class ChatBubble(Canvas):
@@ -108,6 +112,10 @@ class ChatGUI:
     """聊天界面主类"""
     
     def __init__(self, root):
+        logger.info("=" * 60)
+        logger.info("GUI界面启动")
+        logger.info("=" * 60)
+        
         self.root = root
         self.root.title("DSL智能客服系统")
         self.root.geometry("850x950")
@@ -125,6 +133,7 @@ class ChatGUI:
         self.input_dialog = None
         
         # 创建界面
+        logger.debug("创建GUI组件")
         self.create_widgets()
         
         # 检查API密钥
@@ -256,14 +265,17 @@ class ChatGUI:
     
     def load_script(self):
         """加载DSL脚本文件"""
+        logger.info("用户点击加载脚本按钮")
         file_path = filedialog.askopenfilename(
             title="选择DSL脚本文件",
             filetypes=[("DSL文件", "*.dsl"), ("所有文件", "*.*")]
         )
         
         if not file_path:
+            logger.debug("用户取消文件选择")
             return
         
+        logger.info(f"用户选择脚本文件: {file_path}")
         self.current_script_path = file_path
         self.script_label.config(text=f"已加载: {Path(file_path).name}")
         
@@ -273,28 +285,37 @@ class ChatGUI:
     def _load_script_thread(self, file_path):
         """在后台线程中加载脚本"""
         try:
+            logger.info(f"开始加载脚本: {file_path}")
             self.add_bot_message("正在加载脚本...")
             
             # 加载脚本内容
             with open(file_path, 'r', encoding='utf-8') as f:
                 script_content = f.read()
+            logger.info(f"脚本文件加载成功，大小: {len(script_content)} 字符")
             
             # 词法分析
             self.add_bot_message("正在进行词法分析...")
+            logger.debug("开始词法分析")
             lexer = Lexer(script_content)
             tokens = lexer.tokenize()
+            logger.info(f"词法分析完成，Token数量: {len(tokens)}")
             
             # 语法分析
             self.add_bot_message("正在进行语法分析...")
+            logger.debug("开始语法分析")
             lexer = Lexer(script_content)
             parser = Parser(lexer)
             program = parser.parse()
+            logger.info(f"语法分析完成，意图数量: {len(program.intents)}")
             
             # 创建LLM客户端
             self.add_bot_message("正在初始化LLM客户端...")
+            logger.debug("初始化LLM客户端")
             llm_client = create_llm_client("zhipuai")
+            logger.info("LLM客户端初始化成功")
             
             # 创建解释器
+            logger.debug("创建解释器")
             interpreter = Interpreter(llm_client)
             interpreter.interpret(program)
             
@@ -311,14 +332,19 @@ class ChatGUI:
             
             # 更新UI（必须在主线程）
             self.root.after(0, lambda: self._on_script_loaded(len(tokens), len(program.intents)))
+            logger.info("脚本加载完成")
             
         except FileNotFoundError:
+            logger.error(f"文件不存在: {file_path}")
             self.root.after(0, lambda: self.add_bot_message(f"❌ 错误: 文件不存在: {file_path}"))
         except SyntaxError as e:
+            logger.error(f"语法错误: {e}", exc_info=True)
             self.root.after(0, lambda: self.add_bot_message(f"❌ 语法错误: {e}"))
         except (ValueError, ImportError, RuntimeError) as e:
+            logger.error(f"初始化失败: {e}", exc_info=True)
             self.root.after(0, lambda: self.add_bot_message(f"❌ 初始化失败: {e}"))
         except Exception as e:
+            logger.error(f"发生错误: {e}", exc_info=True)
             self.root.after(0, lambda: self.add_bot_message(f"❌ 发生错误: {e}"))
     
     def _on_script_loaded(self, token_count, intent_count):
@@ -426,14 +452,17 @@ class ChatGUI:
             return
         
         if user_input.lower() in ['quit', 'exit', '退出']:
+            logger.info("用户退出系统")
             self.add_bot_message("再见！")
             return
         
         # 检查是否已加载脚本
         if not self.interpreter:
+            logger.warning("用户发送消息但未加载脚本")
             self.add_bot_message("❌ 请先加载DSL脚本文件！")
             return
         
+        logger.info(f"用户发送消息: {user_input}")
         # 显示用户消息
         self.add_user_message(user_input)
         self.input_entry.delete(0, 'end')
@@ -444,19 +473,24 @@ class ChatGUI:
     def _process_message(self, user_input: str):
         """在后台线程中处理消息"""
         try:
+            logger.debug("开始处理用户消息")
             # 意图识别
             matched_intent = self.interpreter.match_intent(user_input)
             
             if not matched_intent:
+                logger.warning(f"未能识别用户意图: {user_input}")
                 self.root.after(0, lambda: self.add_bot_message(
                     "抱歉，我没有理解您的意图。请尝试其他表达方式。"
                 ))
                 return
             
+            logger.info(f"识别到意图: {matched_intent.name}")
             # 执行意图（response会通过output_callback显示）
             self.interpreter.execute_intent(matched_intent)
+            logger.debug("消息处理完成")
             
         except Exception as e:
+            logger.error(f"处理消息时发生错误: {e}", exc_info=True)
             self.root.after(0, lambda: self.add_bot_message(f"❌ 发生错误: {e}"))
             import traceback
             traceback.print_exc()

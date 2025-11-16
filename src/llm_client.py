@@ -7,9 +7,13 @@ LLM客户端（LLM Client）
 import os
 from typing import List, Optional, Dict
 from dotenv import load_dotenv
+from src.logger import setup_logger
 
 # 加载环境变量
 load_dotenv()
+
+# 初始化日志记录器
+logger = setup_logger("DSL_Agent_LLM")
 
 
 class LLMClient:
@@ -38,10 +42,12 @@ class ZhipuAIClient(LLMClient):
         :param model: 使用的模型名称 (glm-4, glm-3-turbo等)
         :raises ValueError: 如果未配置API Key或初始化失败
         """
+        logger.info(f"初始化智谱AI客户端，模型: {model}")
         api_key = api_key or os.getenv("ZHIPUAI_API_KEY")
         
         # 如果没有API Key，抛出异常
         if not api_key:
+            logger.error("未配置ZHIPUAI_API_KEY")
             raise ValueError(
                 "未配置ZHIPUAI_API_KEY。请配置API密钥：\n"
                 "1. 创建 .env 文件\n"
@@ -53,18 +59,24 @@ class ZhipuAIClient(LLMClient):
             import zhipuai
             self.client = zhipuai.ZhipuAI(api_key=api_key)
             self.model = model
+            logger.info("智谱AI客户端初始化成功")
         except ImportError:
+            logger.error("未安装zhipuai库")
             raise ImportError(
                 "未安装zhipuai库。请安装：pip install zhipuai\n"
                 "本项目要求使用API进行意图识别，不支持简单匹配模式。"
             )
         except Exception as e:
+            logger.error(f"智谱AI客户端初始化失败: {e}", exc_info=True)
             raise RuntimeError(f"智谱AI客户端初始化失败: {e}")
     
     def identify_intent(self, user_input: str, intents: List, conversation_history: List = None, last_intent: str = None, last_context: Dict = None) -> Optional[str]:
         """使用智谱AI API识别意图（支持对话历史和上下文）"""
+        logger.debug(f"开始意图识别，用户输入: {user_input[:50]}...")
+        
         # 确保客户端已初始化
         if not self.client:
+            logger.error("智谱AI客户端未正确初始化")
             raise RuntimeError("智谱AI客户端未正确初始化")
         
         # 构建意图列表描述
@@ -74,18 +86,22 @@ class ZhipuAIClient(LLMClient):
             intent_descriptions.append(f"- {intent.name}: {patterns}")
         
         intent_list = "\n".join(intent_descriptions)
+        logger.debug(f"可用意图数量: {len(intents)}")
         
         # 构建上下文信息
         context_info = ""
         if last_intent:
             context_info += f"\n上一次对话的意图：{last_intent}"
+            logger.debug(f"上一次意图: {last_intent}")
         if last_context:
             context_info += f"\n上一次对话的上下文：{last_context}"
+            logger.debug(f"上一次上下文: {last_context}")
         if conversation_history and len(conversation_history) > 0:
             context_info += "\n\n最近对话历史："
             for msg in conversation_history[-4:]:  # 只显示最近4条
                 role = "用户" if msg.get("role") == "user" else "机器人"
                 context_info += f"\n{role}: {msg.get('content', '')}"
+            logger.debug(f"对话历史长度: {len(conversation_history)}")
         
         # 构建提示词
         prompt = f"""你是一个智能客服系统的意图识别模块。请根据用户输入和对话历史，从以下意图列表中选择最匹配的意图。
@@ -100,6 +116,7 @@ class ZhipuAIClient(LLMClient):
 注意：如果用户的问题是对上一个话题的追问或继续，应该识别为相关的意图。"""
         
         try:
+            logger.debug("调用智谱AI API进行意图识别")
             messages = [
                 {"role": "system", "content": "你是一个专业的意图识别助手，能够理解对话上下文，只返回意图名称。"},
                 {"role": "user", "content": prompt}
@@ -113,18 +130,23 @@ class ZhipuAIClient(LLMClient):
             )
             
             intent_name = response.choices[0].message.content.strip()
+            logger.info(f"LLM返回的意图名称: {intent_name}")
             
             # 验证返回的意图名称是否有效
             if intent_name == "None" or not intent_name:
+                logger.warning("LLM返回None或空字符串")
                 return None
             
             # 检查意图名称是否在列表中
             for intent in intents:
                 if intent.name == intent_name:
+                    logger.info(f"验证通过，匹配到意图: {intent_name}")
                     return intent_name
             
+            logger.warning(f"LLM返回的意图名称不在可用列表中: {intent_name}")
             return None
         except Exception as e:
+            logger.error(f"智谱AI API调用失败: {e}", exc_info=True)
             print(f"智谱AI API调用失败: {e}")
             return None
 
